@@ -25,5 +25,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# generated pi digits (large file, regenerate with: python scripts/generate-pi.py)
-public/pi-digits.txt
+# To regenerate pi digits: python scripts/generate-pi.py

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "npm run generate-pi && next build",
+    "build": "next build",
     "start": "next start",
     "generate-pi": "tsx scripts/generate-pi.ts"
   },
