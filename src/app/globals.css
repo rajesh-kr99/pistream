@@ -44,6 +44,24 @@ body {
   animation: digit-glow 2s ease-in-out infinite;
 }
 
+/* Milestone digit */
+.milestone-digit {
+  display: inline-block;
+  border: 1px solid #34d399;
+  border-radius: 3px;
+  padding: 0 1px;
+  color: #9ca3af;
+  cursor: default;
+}
+
+/* Search highlight */
+.search-highlight {
+  color: #f59e0b;
+  border: 1px solid #34d399;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
 /* Confetti */
 @keyframes confetti-fall {
   0% {

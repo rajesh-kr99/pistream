@@ -1,11 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   LAUNCH_DATE,
   MS_PER_DIGIT,
   PI_DECIMALS_FALLBACK,
 } from "@/lib/constants";
+
+const MILESTONE_INDICES = [9, 99, 999, 9999, 99999, 999999];
+const MILESTONE_LABELS: Record<number, string> = {
+  9: "10th digit of π",
+  99: "100th digit of π",
+  999: "1,000th digit of π",
+  9999: "10,000th digit of π",
+  99999: "100,000th digit of π",
+  999999: "1,000,000th digit of π",
+};
 
 export default function PiDisplay() {
   const [piDecimals, setPiDecimals] = useState(PI_DECIMALS_FALLBACK);
@@ -29,9 +39,15 @@ export default function PiDisplay() {
   } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const endRef = useRef<HTMLSpanElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
   const piLoadedRef = useRef(false);
+
+  // Mark as mounted to avoid SSR hydration mismatch from Date.now()
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load full pi digits file
   useEffect(() => {
@@ -107,8 +123,8 @@ export default function PiDisplay() {
       setHighlightRange(null);
       setResultModal({
         type: "search-not-found",
-        message: `"${searchQuery}" not found`,
-        sub: `Not in the first ${piDecimals.length.toLocaleString()} decimal digits of π`,
+        message: "Not found yet",
+        sub: `Not in the first ${piDecimals.length.toLocaleString()} digits of π. But π is infinite — your number is out there. We're always computing more.`,
       });
       return;
     }
@@ -174,6 +190,15 @@ export default function PiDisplay() {
     setGuessInput("");
   }, [guessInput, displayCount, piDecimals]);
 
+  // ========================  SSR PLACEHOLDER  ========================
+  if (!mounted) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <span className="text-[10rem] md:text-[14rem] text-amber-400 leading-none select-none">π</span>
+      </div>
+    );
+  }
+
   // ========================  PRE-LAUNCH  ========================
   if (!launched) {
     const diff = LAUNCH_DATE.getTime() - now;
@@ -223,35 +248,97 @@ export default function PiDisplay() {
   if (hoursR > 0 || daysR > 0) timeRunning += `${hoursR}h `;
   timeRunning += `${minsR}m`;
 
-  // Render digits efficiently: plain text spans + one highlighted range + latest digit
+  // Helper: render a text segment, splitting out milestone digits with borders
+  const renderSegment = (text: string, baseIdx: number, baseClass: string, key: string) => {
+    const localMilestones = MILESTONE_INDICES.filter(
+      (mi) => mi >= baseIdx && mi < baseIdx + text.length
+    );
+
+    if (localMilestones.length === 0) {
+      return <span key={key} className={baseClass}>{text}</span>;
+    }
+
+    const parts: React.ReactNode[] = [];
+    let cursor = 0;
+
+    for (const mi of localMilestones) {
+      const local = mi - baseIdx;
+      if (local > cursor) {
+        parts.push(
+          <span key={`${key}-t${cursor}`} className={baseClass}>
+            {text.substring(cursor, local)}
+          </span>
+        );
+      }
+      parts.push(
+        <span
+          key={`${key}-m${mi}`}
+          className="milestone-digit"
+          title={MILESTONE_LABELS[mi]}
+        >
+          {text[local]}
+        </span>
+      );
+      cursor = local + 1;
+    }
+
+    if (cursor < text.length) {
+      parts.push(
+        <span key={`${key}-t${cursor}`} className={baseClass}>
+          {text.substring(cursor)}
+        </span>
+      );
+    }
+
+    return <React.Fragment key={key}>{parts}</React.Fragment>;
+  };
+
+  // Render digits with milestone borders and search highlighting
   const renderDigits = () => {
     if (displayCount === 0) return null;
 
-    const lastDigit = visibleDigits[displayCount - 1];
-    const rest = displayCount > 1 ? visibleDigits.substring(0, displayCount - 1) : "";
+    const lastIdx = displayCount - 1;
+    const lastDigit = visibleDigits[lastIdx];
+    const restLen = displayCount > 1 ? displayCount - 1 : 0;
+
+    // Check if last digit is a milestone
+    const lastIsMilestone = MILESTONE_LABELS[lastIdx] !== undefined;
+
+    // Build the last digit element
+    const lastEl = lastIsMilestone ? (
+      <span
+        ref={endRef}
+        className="latest-digit milestone-digit"
+        title={MILESTONE_LABELS[lastIdx]}
+      >
+        {lastDigit}
+      </span>
+    ) : (
+      <span ref={endRef} className="latest-digit">
+        {lastDigit}
+      </span>
+    );
+
+    if (restLen === 0) return lastEl;
+
+    const rest = visibleDigits.substring(0, restLen);
 
     if (highlightRange) {
       const [hlStart, hlEnd] = highlightRange;
-      const clampedEnd = Math.min(hlEnd, displayCount - 1);
+      const clampedEnd = Math.min(hlEnd, restLen);
 
-      if (hlStart < displayCount - 1) {
+      if (hlStart < restLen) {
         return (
           <>
-            <span className="text-gray-400">
-              {rest.substring(0, hlStart)}
-            </span>
+            {renderSegment(rest.substring(0, hlStart), 0, "text-gray-400", "pre")}
             <span
               ref={highlightRef}
-              className="text-emerald-400 bg-emerald-400/10 rounded-sm"
+              className="search-highlight"
             >
               {rest.substring(hlStart, clampedEnd)}
             </span>
-            <span className="text-gray-400">
-              {rest.substring(clampedEnd)}
-            </span>
-            <span ref={endRef} className="latest-digit">
-              {lastDigit}
-            </span>
+            {renderSegment(rest.substring(clampedEnd), clampedEnd, "text-gray-400", "post")}
+            {lastEl}
           </>
         );
       }
@@ -259,10 +346,8 @@ export default function PiDisplay() {
 
     return (
       <>
-        <span className="text-gray-400">{rest}</span>
-        <span ref={endRef} className="latest-digit">
-          {lastDigit}
-        </span>
+        {renderSegment(rest, 0, "text-gray-400", "all")}
+        {lastEl}
       </>
     );
   };
@@ -272,9 +357,21 @@ export default function PiDisplay() {
       {/* ---- Header: π + tagline left, counters right ---- */}
       <header className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-white/[0.06] shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-4xl md:text-5xl text-amber-400 leading-none select-none">
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              setSearchQuery("");
+              setSearchResult(null);
+              setSearchNotFound(false);
+              setHighlightRange(null);
+              setResultModal(null);
+              window.history.replaceState({}, "", "/");
+            }}
+            className="text-4xl md:text-5xl text-amber-400 leading-none select-none cursor-pointer hover:opacity-80 transition-opacity"
+          >
             π
-          </span>
+          </a>
           <div className="hidden sm:block">
             <p className="text-xs md:text-sm text-gray-600">
               One digit. Every minute. Forever.
