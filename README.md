@@ -119,6 +119,17 @@ The `public/pi-digits.txt` file is served as a static asset. No server-side comp
 
 ## Next steps
 
+### Roadmap priorities
+
+| Priority | Feature | Why |
+|----------|---------|-----|
+| **High** | Shareable links + social cards | Growth engine — every share brings visitors |
+| **High** | Analytics (Plausible or Umami) | Free, privacy-friendly — know your traffic before monetizing |
+| **Medium** | Email milestone notifications | "Your number 19901225 will be revealed in 3 days" — brings people back |
+| **Medium** | Ad slots (modal only) | Simple revenue, non-intrusive |
+| **Low** | Merch store | Wait for audience signal |
+| **Low** | API for developers | Let others embed the live digit count — more exposure |
+
 ### Short-term (launch week)
 
 - [ ] Deploy to Vercel (or similar) for Pi Day 2026 launch
