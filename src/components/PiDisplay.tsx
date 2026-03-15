@@ -40,6 +40,7 @@ export default function PiDisplay() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const endRef = useRef<HTMLSpanElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
   const piLoadedRef = useRef(false);
@@ -167,12 +168,12 @@ export default function PiDisplay() {
   }, [searchQuery, piDecimals, totalRevealed]);
 
   // ----- guess handler -----
-  const handleGuess = useCallback(() => {
-    if (!guessInput || !/^\d$/.test(guessInput)) return;
+  const handleGuess = useCallback((digit: string) => {
+    if (!digit || !/^\d$/.test(digit)) return;
     const nextIndex = displayCount; // 0-based index of the next unrevealed digit
     if (nextIndex >= piDecimals.length) return;
     const actual = piDecimals[nextIndex];
-    if (guessInput === actual) {
+    if (digit === actual) {
       setResultModal({
         type: "guess-correct",
         message: `You got it! The next digit is ${actual}`,
@@ -183,12 +184,11 @@ export default function PiDisplay() {
     } else {
       setResultModal({
         type: "guess-wrong",
-        message: `Not quite! You guessed ${guessInput}`,
+        message: `Not quite! You guessed ${digit}`,
         sub: `Wait for the next digit to be revealed and try again!`,
       });
     }
-    setGuessInput("");
-  }, [guessInput, displayCount, piDecimals]);
+  }, [displayCount, piDecimals]);
 
   // ========================  SSR PLACEHOLDER  ========================
   if (!mounted) {
@@ -355,63 +355,95 @@ export default function PiDisplay() {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* ---- Header: π + tagline left, counters right ---- */}
-      <header className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-white/[0.06] shrink-0">
-        <div className="flex items-center gap-3">
-          <a
-            href="/"
-            onClick={(e) => {
-              e.preventDefault();
-              setSearchQuery("");
-              setSearchResult(null);
-              setSearchNotFound(false);
-              setHighlightRange(null);
-              setResultModal(null);
-              window.history.replaceState({}, "", "/");
-            }}
-            className="text-4xl md:text-5xl text-amber-400 leading-none select-none cursor-pointer hover:opacity-80 transition-opacity"
-          >
-            π
-          </a>
-          <div className="hidden sm:block">
-            <p className="text-xs md:text-sm text-gray-600">
-              One digit. Every minute. Forever.
-            </p>
-            <button
-              onClick={() => setShowFacts(true)}
-              className="text-[10px] text-amber-400/60 hover:text-amber-400 transition-colors mt-0.5"
+      <header className="px-4 md:px-6 py-3 border-b border-white/[0.06] shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                setSearchQuery("");
+                setSearchResult(null);
+                setSearchNotFound(false);
+                setHighlightRange(null);
+                setResultModal(null);
+                window.history.replaceState({}, "", "/");
+              }}
+              className="text-3xl md:text-5xl text-amber-400 leading-none select-none cursor-pointer hover:opacity-80 transition-opacity"
             >
-              Interesting facts about π →
-            </button>
+              π
+            </a>
+            <div>
+              <p className="text-[10px] md:text-sm text-gray-600">
+                One digit. Every minute. Forever.
+              </p>
+              <button
+                onClick={() => setShowFacts(true)}
+                className="text-[9px] md:text-[10px] text-amber-400/60 hover:text-amber-400 transition-colors mt-0.5"
+              >
+                Interesting facts about π →
+              </button>
+            </div>
           </div>
+
+          {/* Desktop: card style in header */}
+          <div className="hidden md:flex items-center gap-3">
+            <div className="bg-white/[0.04] rounded-lg px-3 py-1.5 text-center">
+              <div className="text-base text-amber-400 tabular-nums leading-tight">
+                {displayCount.toLocaleString()}
+              </div>
+              <div className="text-[10px] text-gray-600">
+                digits
+              </div>
+            </div>
+            <div className="bg-white/[0.04] rounded-lg px-3 py-1.5 text-center">
+              <div className="text-base text-amber-400 tabular-nums leading-tight">
+                {secondsToNext}
+                <span className="text-[10px] text-gray-600">s</span>
+              </div>
+              <div className="text-[10px] text-gray-600">
+                next digit
+              </div>
+            </div>
+            <div className="bg-white/[0.04] rounded-lg px-3 py-1.5 text-center">
+              <div className="text-base text-amber-400 tabular-nums leading-tight">
+                {timeRunning}
+              </div>
+              <div className="text-[10px] text-gray-600">
+                running
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile: hamburger */}
+          <button
+            className="md:hidden flex flex-col justify-center items-center w-8 h-8 gap-1"
+            onClick={() => setShowMobileMenu((v) => !v)}
+            aria-label="Toggle stats menu"
+          >
+            <span className={`block w-5 h-0.5 bg-amber-400 transition-transform ${showMobileMenu ? "rotate-45 translate-y-[3px]" : ""}`} />
+            <span className={`block w-5 h-0.5 bg-amber-400 transition-opacity ${showMobileMenu ? "opacity-0" : ""}`} />
+            <span className={`block w-5 h-0.5 bg-amber-400 transition-transform ${showMobileMenu ? "-rotate-45 -translate-y-[3px]" : ""}`} />
+          </button>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="bg-white/[0.04] rounded-lg px-3 py-1.5 text-center">
-            <div className="text-sm md:text-base text-amber-400 tabular-nums leading-tight">
-              {displayCount.toLocaleString()}
+        {/* Mobile: dropdown stats */}
+        {showMobileMenu && (
+          <div className="flex md:hidden justify-around mt-2 pt-2 border-t border-white/[0.04] pb-1">
+            <div className="text-center">
+              <div className="text-xs text-amber-400 tabular-nums">{displayCount.toLocaleString()}</div>
+              <div className="text-[8px] text-gray-600">digits</div>
             </div>
-            <div className="text-[9px] md:text-[10px] text-gray-600">
-              digits
+            <div className="text-center">
+              <div className="text-xs text-amber-400 tabular-nums">{secondsToNext}<span className="text-[8px] text-gray-600">s</span></div>
+              <div className="text-[8px] text-gray-600">next digit</div>
             </div>
-          </div>
-          <div className="bg-white/[0.04] rounded-lg px-3 py-1.5 text-center">
-            <div className="text-sm md:text-base text-amber-400 tabular-nums leading-tight">
-              {secondsToNext}
-              <span className="text-[10px] text-gray-600">s</span>
-            </div>
-            <div className="text-[9px] md:text-[10px] text-gray-600">
-              next digit
+            <div className="text-center">
+              <div className="text-xs text-amber-400 tabular-nums">{timeRunning}</div>
+              <div className="text-[8px] text-gray-600">running</div>
             </div>
           </div>
-          <div className="bg-white/[0.04] rounded-lg px-3 py-1.5 text-center">
-            <div className="text-sm md:text-base text-amber-400 tabular-nums leading-tight">
-              {timeRunning}
-            </div>
-            <div className="text-[9px] md:text-[10px] text-gray-600">
-              running
-            </div>
-          </div>
-        </div>
+        )}
       </header>
 
       {/* ---- Facts modal ---- */}
@@ -592,13 +624,30 @@ export default function PiDisplay() {
       )}
 
       {/* ---- Footer: Search + Predict ---- */}
-      <div className="shrink-0 border-t border-white/[0.06] bg-[#0a0a0a] px-4 md:px-6 py-3">
-        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row gap-2">
+      <div className="shrink-0 border-t border-white/[0.06] bg-[#0a0a0a] px-3 md:px-6 py-2 md:py-3">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
           {/* Search */}
           <div className="flex gap-2 items-center flex-1">
             <span className="text-xs text-gray-600 hidden md:block whitespace-nowrap">
               Find your number in π
             </span>
+            {/* Mobile input */}
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Find your number in π"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value.replace(/\D/g, ""));
+                setSearchResult(null);
+                setSearchNotFound(false);
+                setHighlightRange(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              className="flex-1 min-w-0 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-amber-400/40 focus:ring-1 focus:ring-amber-400/20 transition-colors md:hidden"
+              maxLength={20}
+            />
+            {/* Desktop input */}
             <input
               type="text"
               inputMode="numeric"
@@ -611,50 +660,37 @@ export default function PiDisplay() {
                 setHighlightRange(null);
               }}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-amber-400/40 focus:ring-1 focus:ring-amber-400/20 transition-colors"
+              className="hidden md:block flex-1 min-w-0 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-amber-400/40 focus:ring-1 focus:ring-amber-400/20 transition-colors"
               maxLength={20}
             />
             <button
               onClick={handleSearch}
               disabled={!searchQuery}
-              className="bg-amber-400 text-black font-semibold px-4 py-2 rounded-lg text-sm hover:bg-amber-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="bg-amber-400 text-black font-semibold px-3 md:px-4 py-2 rounded-lg text-sm hover:bg-amber-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
             >
               Search
             </button>
           </div>
 
-          {/* Divider */}
-          <div className="hidden sm:block w-px bg-white/[0.06] mx-1" />
+          {/* Divider (desktop only) */}
+          <div className="hidden md:block w-px h-6 bg-white/[0.06]" />
 
           {/* Predict next digit */}
           <div className="flex gap-2 items-center">
-            <span className="text-xs text-gray-600 hidden md:block whitespace-nowrap">
+            <span className="text-xs text-gray-600 whitespace-nowrap">
               Predict next
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5 md:gap-1">
               {Array.from({ length: 10 }).map((_, d) => (
                 <button
                   key={d}
-                  onClick={() => {
-                    setGuessInput(String(d));
-                  }}
-                  className={`w-7 h-8 rounded text-sm font-semibold transition-colors ${
-                    guessInput === String(d)
-                      ? "bg-amber-400 text-black"
-                      : "bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-white"
-                  }`}
+                  onClick={() => handleGuess(String(d))}
+                  className="w-6 h-7 md:w-7 md:h-8 rounded text-xs md:text-sm font-semibold transition-colors bg-white/[0.04] text-gray-400 hover:bg-amber-400 hover:text-black active:bg-amber-300"
                 >
                   {d}
                 </button>
               ))}
             </div>
-            <button
-              onClick={handleGuess}
-              disabled={!guessInput}
-              className="bg-amber-400 text-black font-semibold px-4 py-2 rounded-lg text-sm hover:bg-amber-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Guess
-            </button>
           </div>
         </div>
       </div>
